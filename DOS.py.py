@@ -1,4 +1,4 @@
-# A simple GUI Bash (shell) emulator in Python using Tkinter and subprocess.
+# CherryDOS v1.0 - A GUI MS-DOS Style Shell Emulator in Python
 import tkinter as tk
 from tkinter import scrolledtext, simpledialog, messagebox
 import subprocess
@@ -6,20 +6,31 @@ import threading
 import os
 import pickle
 import glob
+import time
+from datetime import datetime
 
 command_history = []
 history_index = -1
-SESSION_FILE = "gui_bash_session.pkl"
+SESSION_FILE = "cherrydos_session.pkl"
+command_aliases = {
+    "dir": "ls",
+    "copy": "cp",
+    "del": "rm",
+    "move": "mv",
+    "rename": "mv"
+}
 
 def run_command():
     global history_index
-    cmd = entry.get()
-    if not cmd.strip():
+    cmd = entry.get().strip()
+    if not cmd:
         return
     command_history.append(cmd)
     history_index = len(command_history)
-    output_text.insert(tk.END, f"C:\\{os.getcwd().split(os.sep)[-1]}> {cmd}\n")
     entry.delete(0, tk.END)
+    output_text.insert(tk.END, f"C:\\{os.getcwd().split(os.sep)[-1]}> {cmd}\n")
+
+    # Simulated commands
     if cmd.lower() == "exit":
         root.quit()
         return
@@ -30,19 +41,34 @@ def run_command():
             output_text.insert(tk.END, f"Changed directory to {os.getcwd()}\n")
         except Exception as e:
             output_text.insert(tk.END, f"cd: {e}\n")
-        output_text.insert(tk.END, f"C:\\{os.getcwd().split(os.sep)[-1]}> ")
-        output_text.see(tk.END)
         return
     elif cmd.lower() == "cls":
-        output_text.delete(1.0, tk.END)
-        output_text.insert(tk.END, f"Microsoft(R) MS-DOS(R) Shell\nCopyright (C) Microsoft Corp 1990-2025.\n\nC:\\{os.getcwd().split(os.sep)[-1]}> ")
-        output_text.see(tk.END)
+        clear_screen()
         return
     elif cmd.lower() == "help":
-        output_text.insert(tk.END, "Built-in commands:\n  cd <dir>\n  cls\n  exit\n  help\n")
-        output_text.insert(tk.END, f"C:\\{os.getcwd().split(os.sep)[-1]}> ")
-        output_text.see(tk.END)
+        output_text.insert(tk.END, """
+Built-in commands:
+  cd <dir>      Change directory
+  cls           Clear screen
+  exit          Exit CherryDOS
+  help          List commands
+  win           Launch Windows (fake)
+  format c:     Format drive (fake)
+  dir           List directory (alias to ls)
+        """)
         return
+    elif cmd.lower() == "format c:":
+        simulate_format()
+        return
+    elif cmd.lower() == "win":
+        simulate_windows()
+        return
+
+    # Alias replacement
+    base_cmd = cmd.split()[0].lower()
+    if base_cmd in command_aliases:
+        cmd = cmd.replace(base_cmd, command_aliases[base_cmd], 1)
+
     def worker():
         try:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=os.getcwd())
@@ -52,7 +78,30 @@ def run_command():
         output_text.insert(tk.END, output)
         output_text.insert(tk.END, f"C:\\{os.getcwd().split(os.sep)[-1]}> ")
         output_text.see(tk.END)
+
     threading.Thread(target=worker, daemon=True).start()
+
+def simulate_format():
+    output_text.insert(tk.END, "\nFormatting C:\\ ...\n")
+    for i in range(0, 101, 10):
+        output_text.insert(tk.END, f"{i}% completed...\n")
+        output_text.see(tk.END)
+        output_text.update()
+        time.sleep(0.1)
+    output_text.insert(tk.END, "Format complete.\n")
+
+def simulate_windows():
+    output_text.insert(tk.END, "\nLoading Microsoft Windows 3.1...\n")
+    for i in range(5):
+        output_text.insert(tk.END, ".")
+        output_text.update()
+        time.sleep(0.3)
+    output_text.insert(tk.END, "\nGeneral Protection Fault at 0xDEAD:0xBEEF\nSystem halted.\n")
+
+def clear_screen():
+    output_text.delete(1.0, tk.END)
+    output_text.insert(tk.END, f"CherryDOS v1.0 - MS-DOS Shell Emulator\nCopyright (C) CherryDev 2025\n\nC:\\{os.getcwd().split(os.sep)[-1]}> ")
+    output_text.see(tk.END)
 
 def on_enter(event):
     run_command()
@@ -68,7 +117,6 @@ def change_dir():
         output_text.see(tk.END)
 
 def set_terminal_theme():
-    # Set colors for a classic MS-DOS look
     root.configure(bg="black")
     output_text.configure(bg="black", fg="white", insertbackground="white", font=("Consolas", 11))
     entry.configure(bg="black", fg="white", insertbackground="white", font=("Consolas", 11))
@@ -109,9 +157,9 @@ def load_session():
                 pass
 
 def open_settings():
-    color = simpledialog.askstring("Color", "Enter text color (e.g., white, lime, yellow):", initialvalue="white")
+    color = simpledialog.askstring("Text Color", "Enter text color:", initialvalue="white")
     bg = simpledialog.askstring("Background", "Enter background color:", initialvalue="black")
-    font = simpledialog.askstring("Font", "Enter font (e.g., Consolas, Courier):", initialvalue="Consolas")
+    font = simpledialog.askstring("Font", "Enter font:", initialvalue="Consolas")
     try:
         output_text.configure(fg=color, bg=bg, font=(font, 11))
         entry.configure(fg=color, bg=bg, font=(font, 11))
@@ -119,16 +167,16 @@ def open_settings():
         messagebox.showerror("Settings Error", str(e))
 
 def show_about():
-    messagebox.showinfo("About", "GUI Bash\nA Python MS-DOS style shell\nBy CherryDev 2025")
+    messagebox.showinfo("About", "CherryDOS v1.0\nA Python MS-DOS style shell\nBy CherryDev 2025")
 
 def show_easter_egg():
     output_text.insert(tk.END, r"""
-      ________   ________   ________   ________     
-     /  _____/  /  _____/  /  _____/  /  _____/     
-    /  /       /  /       /  /       /  /           
-   /  /       /  /       /  /       /  /            
-  /  /____   /  /____   /  /____   /  /____         
- /_______/  /_______/  /_______/  /_______/         
+  ________   ________   ________   ________     
+ /  _____/  /  _____/  /  _____/  /  _____/     
+/  /       /  /       /  /       /  /           
+/  /       /  /       /  /       /  /            
+/  /____   /  /____   /  /____   /  /____         
+/_______/  /_______/  /_______/  /_______/        
     """)
     output_text.see(tk.END)
 
@@ -143,11 +191,14 @@ def on_tab(event):
     return "break"
 
 def log_output():
-    with open("gui_bash_output.log", "a", encoding="utf-8") as f:
+    with open("cherrydos_output.log", "a", encoding="utf-8") as f:
+        f.write(f"[{datetime.now()}] \n")
         f.write(output_text.get(1.0, tk.END))
+        f.write("\n")
 
+# GUI Setup
 root = tk.Tk()
-root.title("GUI Bash (Python)")
+root.title("CherryDOS")
 
 output_text = scrolledtext.ScrolledText(root, width=80, height=24, font=("Consolas", 10))
 output_text.pack(padx=5, pady=5)
@@ -160,9 +211,7 @@ entry.bind("<Down>", on_key)
 entry.bind("<Tab>", on_tab)
 
 set_terminal_theme()
-
-output_text.insert(tk.END, f"Microsoft(R) MS-DOS(R) Shell\nCopyright (C) Microsoft Corp 1990-2025.\n\nC:\\{os.getcwd().split(os.sep)[-1]}> \n")
-output_text.see(tk.END)
+clear_screen()
 
 root.protocol("WM_DELETE_WINDOW", lambda: (save_session(), root.destroy()))
 load_session()
